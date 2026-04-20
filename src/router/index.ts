@@ -47,6 +47,15 @@ export const constantRoutes: RouteRecordRaw[] = [
     }
   },
   {
+    path: "/test/button-level",
+    component: () => import("@/pages/demo/permission/button-level.vue"),
+    name: "TestButtonLevel",
+    meta: {
+      hidden: true,
+      title: "按钮级权限测试"
+    }
+  },
+  {
     path: "/",
     component: Layouts,
     redirect: "/dashboard",

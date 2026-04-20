@@ -1,22 +1,32 @@
 <script lang="ts" setup>
-import { useRouter } from "vue-router"
 import { checkPermission } from "@@/utils/permission"
-import SwitchRoles from "./components/SwitchRoles.vue"
 import {
-  DataLine,
-  Refresh,
-  CirclePlus,
-  Warning,
-  Lock,
   ArrowLeft,
-  User
+  CirclePlus,
+  DataLine,
+  Lock,
+  Refresh,
+  User,
+  Warning
 } from "@element-plus/icons-vue"
+import { ElMessage, ElMessageBox } from "element-plus"
+import { onMounted, ref, watch } from "vue"
+import { useRouter } from "vue-router"
+import { useUserStore } from "@/pinia/stores/user"
+import SwitchRoles from "./components/SwitchRoles.vue"
 
 defineOptions({
   name: "PermissionButtonLevel"
 })
 
 const router = useRouter()
+const userStore = useUserStore()
+
+onMounted(() => {
+  if (userStore.roles.length === 0) {
+    userStore.roles.splice(0, 0, "admin")
+  }
+})
 
 type PageStatus = "default" | "loading" | "empty" | "error" | "forbidden"
 
@@ -89,6 +99,13 @@ const mockTableData = ref([
   { id: 2, name: "角色管理", description: "管理用户角色", status: "active" },
   { id: 3, name: "权限配置", description: "配置系统权限", status: "inactive" }
 ])
+
+watch(currentStatus, (newStatus) => {
+  if (newStatus === "error") {
+    retryCount.value = 0
+    errorMessage.value = "服务器连接超时，请稍后重试"
+  }
+})
 </script>
 
 <template>
@@ -109,7 +126,9 @@ const mockTableData = ref([
             :key="status.value"
             :value="status.value"
           >
-            <el-icon class="mr-1"><component :is="status.icon" /></el-icon>
+            <el-icon class="mr-1">
+              <component :is="status.icon" />
+            </el-icon>
             {{ status.label }}
           </el-radio-button>
         </el-radio-group>
@@ -117,249 +136,253 @@ const mockTableData = ref([
     </el-card>
 
     <div class="content-area">
-      <Transition name="fade" mode="out-in">
-        <template v-if="currentStatus === 'loading'">
-          <div class="status-wrapper loading-wrapper">
-            <el-card shadow="never">
-              <template #header>
-                <el-skeleton animated :rows="1" />
-              </template>
-              <div class="loading-content">
-                <div class="loading-animation">
-                  <el-icon class="loading-icon"><Refresh /></el-icon>
-                </div>
-                <div class="loading-text">
-                  <h3>数据加载中</h3>
-                  <p>正在为您获取最新数据，请稍候...</p>
-                </div>
-                <div class="loading-skeleton">
-                  <el-skeleton animated :rows="4" />
-                </div>
-              </div>
-            </el-card>
+      <div v-if="currentStatus === 'loading'" class="status-wrapper loading-wrapper">
+        <el-card shadow="never">
+          <template #header>
+            <el-skeleton animated :rows="1" />
+          </template>
+          <div class="loading-content">
+            <div class="loading-animation">
+              <el-icon class="loading-icon">
+                <Refresh />
+              </el-icon>
+            </div>
+            <div class="loading-text">
+              <h3>数据加载中</h3>
+              <p>正在为您获取最新数据，请稍候...</p>
+            </div>
+            <div class="loading-skeleton">
+              <el-skeleton animated :rows="4" />
+            </div>
           </div>
-        </template>
+        </el-card>
+      </div>
 
-        <template v-else-if="currentStatus === 'empty'">
-          <div class="status-wrapper empty-wrapper">
-            <el-card shadow="never">
-              <template #header>
-                <div class="card-header">
-                  <span class="title">权限列表</span>
-                  <el-button type="primary" :icon="Refresh" circle @click="handleRefresh" />
+      <div v-else-if="currentStatus === 'empty'" class="status-wrapper empty-wrapper">
+        <el-card shadow="never">
+          <template #header>
+            <div class="card-header">
+              <span class="title">权限列表</span>
+              <el-button type="primary" :icon="Refresh" circle @click="handleRefresh" />
+            </div>
+          </template>
+          <div class="empty-content">
+            <el-empty description="">
+              <template #image>
+                <div class="empty-icon-wrapper">
+                  <el-icon class="empty-icon">
+                    <DataLine />
+                  </el-icon>
                 </div>
               </template>
-              <div class="empty-content">
-                <el-empty description="">
-                  <template #image>
-                    <div class="empty-icon-wrapper">
-                      <el-icon class="empty-icon"><DataLine /></el-icon>
-                    </div>
-                  </template>
-                  <h3>暂无数据</h3>
-                  <p class="empty-desc">
-                    当前还没有任何权限配置记录
-                  </p>
-                  <p class="empty-suggestion">
-                    您可以：
-                  </p>
-                  <div class="empty-actions">
-                    <el-button type="primary" :icon="CirclePlus" @click="handleCreateData">
-                      新增权限
-                    </el-button>
-                    <el-button :icon="Refresh" @click="handleRefresh">
-                      刷新页面
-                    </el-button>
-                  </div>
-                </el-empty>
+              <h3>暂无数据</h3>
+              <p class="empty-desc">
+                当前还没有任何权限配置记录
+              </p>
+              <p class="empty-suggestion">
+                您可以：
+              </p>
+              <div class="empty-actions">
+                <el-button type="primary" :icon="CirclePlus" @click="handleCreateData">
+                  新增权限
+                </el-button>
+                <el-button :icon="Refresh" @click="handleRefresh">
+                  刷新页面
+                </el-button>
               </div>
-            </el-card>
+            </el-empty>
           </div>
-        </template>
+        </el-card>
+      </div>
 
-        <template v-else-if="currentStatus === 'error'">
-          <div class="status-wrapper error-wrapper">
-            <el-card shadow="never">
-              <template #header>
-                <div class="card-header">
-                  <span class="title">权限列表</span>
-                  <el-button type="primary" :icon="Refresh" circle @click="handleRetry" />
-                </div>
-              </template>
-              <div class="error-content">
-                <div class="error-icon-wrapper">
-                  <el-icon class="error-icon"><Warning /></el-icon>
-                </div>
-                <h3>加载失败</h3>
-                <p class="error-message">{{ errorMessage }}</p>
-                <div class="error-details" v-if="retryCount > 0">
-                  <el-tag size="small" type="warning">
-                    已重试 {{ retryCount }}/{{ maxRetries }} 次
+      <div v-else-if="currentStatus === 'error'" class="status-wrapper error-wrapper">
+        <el-card shadow="never">
+          <template #header>
+            <div class="card-header">
+              <span class="title">权限列表</span>
+              <el-button type="primary" :icon="Refresh" circle @click="handleRetry" />
+            </div>
+          </template>
+          <div class="error-content">
+            <div class="error-icon-wrapper">
+              <el-icon class="error-icon">
+                <Warning />
+              </el-icon>
+            </div>
+            <h3>加载失败</h3>
+            <p class="error-message">
+              {{ errorMessage }}
+            </p>
+            <div class="error-details" v-if="retryCount > 0">
+              <el-tag size="small" type="warning">
+                已重试 {{ retryCount }}/{{ maxRetries }} 次
+              </el-tag>
+            </div>
+            <div class="error-actions">
+              <el-button
+                type="primary"
+                :icon="Refresh"
+                :disabled="retryCount >= maxRetries"
+                :loading="currentStatus === 'loading'"
+                @click="handleRetry"
+              >
+                {{ retryCount >= maxRetries ? "重试次数已用完" : "重新加载" }}
+              </el-button>
+              <el-button :icon="ArrowLeft" @click="handleGoBack">
+                返回上一页
+              </el-button>
+            </div>
+            <div class="error-suggestion">
+              <el-alert
+                title="您也可以尝试以下方法"
+                type="info"
+                :closable="false"
+                show-icon
+              >
+                <ul class="suggestion-list">
+                  <li>检查网络连接是否正常</li>
+                  <li>确认服务器状态是否正常</li>
+                  <li>稍后再次尝试</li>
+                  <li>如问题持续存在，请联系技术支持</li>
+                </ul>
+              </el-alert>
+            </div>
+          </div>
+        </el-card>
+      </div>
+
+      <div v-else-if="currentStatus === 'forbidden'" class="status-wrapper forbidden-wrapper">
+        <el-card shadow="never">
+          <div class="forbidden-content">
+            <div class="forbidden-icon-wrapper">
+              <el-icon class="forbidden-icon">
+                <Lock />
+              </el-icon>
+            </div>
+            <h3>暂无访问权限</h3>
+            <p class="forbidden-desc">
+              抱歉，您当前的角色没有权限访问此页面
+            </p>
+            <div class="forbidden-info">
+              <el-descriptions :column="1" border size="small">
+                <el-descriptions-item label="当前角色">
+                  <el-tag type="info" size="large">
+                    <el-icon class="mr-1">
+                      <User />
+                    </el-icon>
+                    editor
                   </el-tag>
-                </div>
-                <div class="error-actions">
-                  <el-button
-                    type="primary"
-                    :icon="Refresh"
-                    :disabled="retryCount >= maxRetries"
-                    :loading="currentStatus === 'loading'"
-                    @click="handleRetry"
-                  >
-                    {{ retryCount >= maxRetries ? "重试次数已用完" : "重新加载" }}
-                  </el-button>
-                  <el-button :icon="ArrowLeft" @click="handleGoBack">
-                    返回上一页
-                  </el-button>
-                </div>
-                <div class="error-suggestion">
-                  <el-alert
-                    title="您也可以尝试以下方法"
-                    type="info"
-                    :closable="false"
-                    show-icon
-                  >
-                    <ul class="suggestion-list">
-                      <li>检查网络连接是否正常</li>
-                      <li>确认服务器状态是否正常</li>
-                      <li>稍后再次尝试</li>
-                      <li>如问题持续存在，请联系技术支持</li>
-                    </ul>
-                  </el-alert>
-                </div>
-              </div>
-            </el-card>
-          </div>
-        </template>
-
-        <template v-else-if="currentStatus === 'forbidden'">
-          <div class="status-wrapper forbidden-wrapper">
-            <el-card shadow="never">
-              <div class="forbidden-content">
-                <div class="forbidden-icon-wrapper">
-                  <el-icon class="forbidden-icon"><Lock /></el-icon>
-                </div>
-                <h3>暂无访问权限</h3>
-                <p class="forbidden-desc">
-                  抱歉，您当前的角色没有权限访问此页面
-                </p>
-                <div class="forbidden-info">
-                  <el-descriptions :column="1" border size="small">
-                    <el-descriptions-item label="当前角色">
-                      <el-tag type="info" size="large">
-                        <el-icon class="mr-1"><User /></el-icon>
-                        editor
-                      </el-tag>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="所需权限">
-                      <el-tag type="warning" size="large">admin</el-tag>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="可访问内容">
-                      按钮级权限演示、基础数据查看
-                    </el-descriptions-item>
-                  </el-descriptions>
-                </div>
-                <div class="forbidden-actions">
-                  <el-button type="primary" :icon="User" @click="handleContactAdmin">
-                    联系管理员
-                  </el-button>
-                  <el-button :icon="ArrowLeft" @click="handleGoBack">
-                    返回上一页
-                  </el-button>
-                </div>
-                <div class="forbidden-suggestion">
-                  <el-alert
-                    title="提示"
-                    type="warning"
-                    :closable="false"
-                    show-icon
-                  >
-                    <p>您可以通过以下方式获取权限：</p>
-                    <ul class="suggestion-list">
-                      <li>联系系统管理员申请开通相应权限</li>
-                      <li>使用有权限的账号重新登录</li>
-                      <li>检查当前登录账号的角色配置</li>
-                    </ul>
-                  </el-alert>
-                </div>
-              </div>
-            </el-card>
-          </div>
-        </template>
-
-        <template v-else>
-          <el-card header="权限指令 v-permission 示例" shadow="never" class="margin-top-20">
-            <el-button v-permission="['admin']" type="primary">
-              仅 admin 可见
-            </el-button>
-            <el-button v-permission="['admin', 'editor']">
-              admin 和 editor 都可见
-            </el-button>
-          </el-card>
-
-          <el-card header="权限函数 checkPermission 示例" shadow="never" class="margin-top-20">
-            <el-text type="warning" size="large">
-              Element Plus 的 el-tab-pane 和 el-table-column 以及其它动态渲染 DOM 的场景不适合使用 v-permission
-              这种情况下你可以通过 v-if + checkPermission 来实现
-            </el-text>
-            <el-tabs type="border-card" class="margin-top-20">
-              <el-tab-pane v-if="checkPermission(['admin'])" label="admin 专属">
-                <el-tag type="primary" size="large">
-                  此内容仅 admin 可见
-                </el-tag>
-                <p class="tab-content">
-                  这是管理员专属的内容区域，包含敏感配置项。
-                </p>
-              </el-tab-pane>
-              <el-tab-pane v-if="checkPermission(['admin', 'editor'])" label="共同可见">
-                <el-tag type="success" size="large">
-                  admin 和 editor 都可见
-                </el-tag>
-                <p class="tab-content">
-                  这是公共内容区域，所有具备编辑权限的用户都可以查看。
-                </p>
-              </el-tab-pane>
-            </el-tabs>
-          </el-card>
-
-          <el-card shadow="never" class="margin-top-20">
-            <template #header>
-              <div class="card-header">
-                <span class="title">权限列表模拟</span>
-                <div>
-                  <el-button type="primary" :icon="CirclePlus">
-                    新增权限
-                  </el-button>
-                  <el-button :icon="Refresh" @click="handleRefresh">
-                    刷新
-                  </el-button>
-                </div>
-              </div>
-            </template>
-            <el-table :data="mockTableData" stripe>
-              <el-table-column prop="id" label="ID" width="80" align="center" />
-              <el-table-column prop="name" label="权限名称" min-width="150" />
-              <el-table-column prop="description" label="描述" min-width="200" />
-              <el-table-column prop="status" label="状态" width="100" align="center">
-                <template #default="scope">
-                  <el-tag :type="scope.row.status === 'active' ? 'success' : 'info'" effect="plain">
-                    {{ scope.row.status === 'active' ? '启用' : '禁用' }}
+                </el-descriptions-item>
+                <el-descriptions-item label="所需权限">
+                  <el-tag type="warning" size="large">
+                    admin
                   </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="200" align="center" fixed="right">
-                <template #default>
-                  <el-button type="primary" text bg size="small">
-                    编辑
-                  </el-button>
-                  <el-button type="danger" text bg size="small">
-                    删除
-                  </el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-          </el-card>
-        </template>
-      </Transition>
+                </el-descriptions-item>
+                <el-descriptions-item label="可访问内容">
+                  按钮级权限演示、基础数据查看
+                </el-descriptions-item>
+              </el-descriptions>
+            </div>
+            <div class="forbidden-actions">
+              <el-button type="primary" :icon="User" @click="handleContactAdmin">
+                联系管理员
+              </el-button>
+              <el-button :icon="ArrowLeft" @click="handleGoBack">
+                返回上一页
+              </el-button>
+            </div>
+            <div class="forbidden-suggestion">
+              <el-alert
+                title="提示"
+                type="warning"
+                :closable="false"
+                show-icon
+              >
+                <p>您可以通过以下方式获取权限：</p>
+                <ul class="suggestion-list">
+                  <li>联系系统管理员申请开通相应权限</li>
+                  <li>使用有权限的账号重新登录</li>
+                  <li>检查当前登录账号的角色配置</li>
+                </ul>
+              </el-alert>
+            </div>
+          </div>
+        </el-card>
+      </div>
+
+      <div v-else>
+        <el-card header="权限指令 v-permission 示例" shadow="never" class="margin-top-20">
+          <el-button v-permission="['admin']" type="primary">
+            仅 admin 可见
+          </el-button>
+          <el-button v-permission="['admin', 'editor']">
+            admin 和 editor 都可见
+          </el-button>
+        </el-card>
+
+        <el-card header="权限函数 checkPermission 示例" shadow="never" class="margin-top-20">
+          <el-text type="warning" size="large">
+            Element Plus 的 el-tab-pane 和 el-table-column 以及其它动态渲染 DOM 的场景不适合使用 v-permission
+            这种情况下你可以通过 v-if + checkPermission 来实现
+          </el-text>
+          <el-tabs type="border-card" class="margin-top-20">
+            <el-tab-pane v-if="checkPermission(['admin'])" label="admin 专属">
+              <el-tag type="primary" size="large">
+                此内容仅 admin 可见
+              </el-tag>
+              <p class="tab-content">
+                这是管理员专属的内容区域，包含敏感配置项。
+              </p>
+            </el-tab-pane>
+            <el-tab-pane v-if="checkPermission(['admin', 'editor'])" label="共同可见">
+              <el-tag type="success" size="large">
+                admin 和 editor 都可见
+              </el-tag>
+              <p class="tab-content">
+                这是公共内容区域，所有具备编辑权限的用户都可以查看。
+              </p>
+            </el-tab-pane>
+          </el-tabs>
+        </el-card>
+
+        <el-card shadow="never" class="margin-top-20">
+          <template #header>
+            <div class="card-header">
+              <span class="title">权限列表模拟</span>
+              <div>
+                <el-button type="primary" :icon="CirclePlus">
+                  新增权限
+                </el-button>
+                <el-button :icon="Refresh" @click="handleRefresh">
+                  刷新
+                </el-button>
+              </div>
+            </div>
+          </template>
+          <el-table :data="mockTableData" stripe>
+            <el-table-column prop="id" label="ID" width="80" align="center" />
+            <el-table-column prop="name" label="权限名称" min-width="150" />
+            <el-table-column prop="description" label="描述" min-width="200" />
+            <el-table-column prop="status" label="状态" width="100" align="center">
+              <template #default="scope">
+                <el-tag :type="scope.row.status === 'active' ? 'success' : 'info'" effect="plain">
+                  {{ scope.row.status === 'active' ? '启用' : '禁用' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="200" align="center" fixed="right">
+              <template #default>
+                <el-button type="primary" text bg size="small">
+                  编辑
+                </el-button>
+                <el-button type="danger" text bg size="small">
+                  删除
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </div>
     </div>
   </div>
 </template>
@@ -647,16 +670,6 @@ const mockTableData = ref([
     font-size: 16px;
     font-weight: 600;
   }
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 
 @media (max-width: 768px) {
