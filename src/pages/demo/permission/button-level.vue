@@ -42,14 +42,19 @@ function handleRetry() {
   retryCount.value++
   currentStatus.value = "loading"
   setTimeout(() => {
-    if (retryCount.value >= maxRetries) {
-      currentStatus.value = "error"
-      errorMessage.value = "多次重试失败，请检查网络连接或联系技术支持"
-      ElMessage.error(`已重试 ${maxRetries} 次，全部失败，请稍后再试`)
+    if (Math.random() > 0.5) {
+      currentStatus.value = "default"
+      retryCount.value = 0
+      ElMessage.success("数据加载成功")
     } else {
       currentStatus.value = "error"
-      errorMessage.value = "数据加载失败，点击重试"
-      ElMessage.warning(`第 ${retryCount.value} 次重试失败，还可重试 ${maxRetries - retryCount.value} 次`)
+      if (retryCount.value >= maxRetries) {
+        errorMessage.value = "多次重试失败，请检查网络连接或联系技术支持"
+        ElMessage.error(`已重试 ${maxRetries} 次，请稍后再试`)
+      } else {
+        errorMessage.value = "数据加载失败，点击重试"
+        ElMessage.warning(`第 ${retryCount.value} 次重试失败，还可重试 ${maxRetries - retryCount.value} 次`)
+      }
     }
   }, 1500)
 }
