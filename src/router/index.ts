@@ -197,7 +197,6 @@ export const dynamicRoutes: RouteRecordRaw[] = [
     meta: {
       title: "权限演示",
       elIcon: "Lock",
-      // 可以在根路由中设置角色
       roles: ["admin", "editor"],
       alwaysShow: true
     },
@@ -208,7 +207,6 @@ export const dynamicRoutes: RouteRecordRaw[] = [
         name: "PermissionPageLevel",
         meta: {
           title: "页面级",
-          // 或者在子路由中设置角色
           roles: ["admin"]
         }
       },
@@ -218,7 +216,6 @@ export const dynamicRoutes: RouteRecordRaw[] = [
         name: "PermissionButtonLevel",
         meta: {
           title: "按钮级",
-          // 如果未设置角色，则表示：该页面不需要权限，但会继承根路由的角色
           roles: undefined
         }
       }

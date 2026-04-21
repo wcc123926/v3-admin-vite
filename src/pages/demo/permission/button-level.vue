@@ -1,16 +1,16 @@
 <script lang="ts" setup>
-import { useRouter } from "vue-router"
 import { checkPermission } from "@@/utils/permission"
-import SwitchRoles from "./components/SwitchRoles.vue"
 import {
-  DataLine,
-  Refresh,
-  CirclePlus,
-  Warning,
-  Lock,
   ArrowLeft,
-  User
+  CirclePlus,
+  DataLine,
+  Lock,
+  Refresh,
+  User,
+  Warning
 } from "@element-plus/icons-vue"
+import { useRouter } from "vue-router"
+import SwitchRoles from "./components/SwitchRoles.vue"
 
 defineOptions({
   name: "PermissionButtonLevel"
@@ -48,15 +48,24 @@ function handleRetry() {
       ElMessage.success("数据加载成功")
     } else {
       currentStatus.value = "error"
-      errorMessage.value = retryCount.value >= maxRetries
-        ? "多次重试失败，请检查网络连接或联系技术支持"
-        : "数据加载失败，点击重试"
+      if (retryCount.value >= maxRetries) {
+        errorMessage.value = "多次重试失败，请检查网络连接或联系技术支持"
+        ElMessage.error(`已重试 ${maxRetries} 次，请稍后再试`)
+      } else {
+        errorMessage.value = "数据加载失败，点击重试"
+        ElMessage.warning(`第 ${retryCount.value} 次重试失败，还可重试 ${maxRetries - retryCount.value} 次`)
+      }
     }
   }, 1500)
 }
 
 function handleGoBack() {
-  router.back()
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push("/")
+    ElMessage.info("没有历史记录，已跳转到首页")
+  }
 }
 
 function handleContactAdmin() {
@@ -109,7 +118,9 @@ const mockTableData = ref([
             :key="status.value"
             :value="status.value"
           >
-            <el-icon class="mr-1"><component :is="status.icon" /></el-icon>
+            <el-icon class="mr-1">
+              <component :is="status.icon" />
+            </el-icon>
             {{ status.label }}
           </el-radio-button>
         </el-radio-group>
@@ -118,7 +129,7 @@ const mockTableData = ref([
 
     <div class="content-area">
       <Transition name="fade" mode="out-in">
-        <template v-if="currentStatus === 'loading'">
+        <div v-if="currentStatus === 'loading'" key="loading">
           <div class="status-wrapper loading-wrapper">
             <el-card shadow="never">
               <template #header>
@@ -126,7 +137,9 @@ const mockTableData = ref([
               </template>
               <div class="loading-content">
                 <div class="loading-animation">
-                  <el-icon class="loading-icon"><Refresh /></el-icon>
+                  <el-icon class="loading-icon">
+                    <Refresh />
+                  </el-icon>
                 </div>
                 <div class="loading-text">
                   <h3>数据加载中</h3>
@@ -138,9 +151,9 @@ const mockTableData = ref([
               </div>
             </el-card>
           </div>
-        </template>
+        </div>
 
-        <template v-else-if="currentStatus === 'empty'">
+        <div v-else-if="currentStatus === 'empty'" key="empty">
           <div class="status-wrapper empty-wrapper">
             <el-card shadow="never">
               <template #header>
@@ -153,7 +166,9 @@ const mockTableData = ref([
                 <el-empty description="">
                   <template #image>
                     <div class="empty-icon-wrapper">
-                      <el-icon class="empty-icon"><DataLine /></el-icon>
+                      <el-icon class="empty-icon">
+                        <DataLine />
+                      </el-icon>
                     </div>
                   </template>
                   <h3>暂无数据</h3>
@@ -175,9 +190,9 @@ const mockTableData = ref([
               </div>
             </el-card>
           </div>
-        </template>
+        </div>
 
-        <template v-else-if="currentStatus === 'error'">
+        <div v-else-if="currentStatus === 'error'" key="error">
           <div class="status-wrapper error-wrapper">
             <el-card shadow="never">
               <template #header>
@@ -188,10 +203,14 @@ const mockTableData = ref([
               </template>
               <div class="error-content">
                 <div class="error-icon-wrapper">
-                  <el-icon class="error-icon"><Warning /></el-icon>
+                  <el-icon class="error-icon">
+                    <Warning />
+                  </el-icon>
                 </div>
                 <h3>加载失败</h3>
-                <p class="error-message">{{ errorMessage }}</p>
+                <p class="error-message">
+                  {{ errorMessage }}
+                </p>
                 <div class="error-details" v-if="retryCount > 0">
                   <el-tag size="small" type="warning">
                     已重试 {{ retryCount }}/{{ maxRetries }} 次
@@ -229,14 +248,16 @@ const mockTableData = ref([
               </div>
             </el-card>
           </div>
-        </template>
+        </div>
 
-        <template v-else-if="currentStatus === 'forbidden'">
+        <div v-else-if="currentStatus === 'forbidden'" key="forbidden">
           <div class="status-wrapper forbidden-wrapper">
             <el-card shadow="never">
               <div class="forbidden-content">
                 <div class="forbidden-icon-wrapper">
-                  <el-icon class="forbidden-icon"><Lock /></el-icon>
+                  <el-icon class="forbidden-icon">
+                    <Lock />
+                  </el-icon>
                 </div>
                 <h3>暂无访问权限</h3>
                 <p class="forbidden-desc">
@@ -246,12 +267,16 @@ const mockTableData = ref([
                   <el-descriptions :column="1" border size="small">
                     <el-descriptions-item label="当前角色">
                       <el-tag type="info" size="large">
-                        <el-icon class="mr-1"><User /></el-icon>
+                        <el-icon class="mr-1">
+                          <User />
+                        </el-icon>
                         editor
                       </el-tag>
                     </el-descriptions-item>
                     <el-descriptions-item label="所需权限">
-                      <el-tag type="warning" size="large">admin</el-tag>
+                      <el-tag type="warning" size="large">
+                        admin
+                      </el-tag>
                     </el-descriptions-item>
                     <el-descriptions-item label="可访问内容">
                       按钮级权限演示、基础数据查看
@@ -284,9 +309,9 @@ const mockTableData = ref([
               </div>
             </el-card>
           </div>
-        </template>
+        </div>
 
-        <template v-else>
+        <div v-else key="default">
           <el-card header="权限指令 v-permission 示例" shadow="never" class="margin-top-20">
             <el-button v-permission="['admin']" type="primary">
               仅 admin 可见
@@ -358,7 +383,7 @@ const mockTableData = ref([
               </el-table-column>
             </el-table>
           </el-card>
-        </template>
+        </div>
       </Transition>
     </div>
   </div>
