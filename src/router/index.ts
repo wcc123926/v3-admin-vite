@@ -157,35 +157,6 @@ export const constantRoutes: RouteRecordRaw[] = [
     ]
   },
   {
-    path: "/permission",
-    component: Layouts,
-    redirect: "/permission/page-level",
-    name: "Permission",
-    meta: {
-      title: "权限演示",
-      elIcon: "Lock",
-      alwaysShow: true
-    },
-    children: [
-      {
-        path: "page-level",
-        component: () => import("@/pages/demo/permission/page-level.vue"),
-        name: "PermissionPageLevel",
-        meta: {
-          title: "页面级"
-        }
-      },
-      {
-        path: "button-level",
-        component: () => import("@/pages/demo/permission/button-level.vue"),
-        name: "PermissionButtonLevel",
-        meta: {
-          title: "按钮级"
-        }
-      }
-    ]
-  },
-  {
     path: "/link",
     meta: {
       title: "文档链接",
@@ -217,7 +188,40 @@ export const constantRoutes: RouteRecordRaw[] = [
  * @description 用来放置有权限 (Roles 属性) 的路由
  * @description 必须带有唯一的 Name 属性
  */
-export const dynamicRoutes: RouteRecordRaw[] = []
+export const dynamicRoutes: RouteRecordRaw[] = [
+  {
+    path: "/permission",
+    component: Layouts,
+    redirect: "/permission/page-level",
+    name: "Permission",
+    meta: {
+      title: "权限演示",
+      elIcon: "Lock",
+      roles: ["admin", "editor"],
+      alwaysShow: true
+    },
+    children: [
+      {
+        path: "page-level",
+        component: () => import("@/pages/demo/permission/page-level.vue"),
+        name: "PermissionPageLevel",
+        meta: {
+          title: "页面级",
+          roles: ["admin"]
+        }
+      },
+      {
+        path: "button-level",
+        component: () => import("@/pages/demo/permission/button-level.vue"),
+        name: "PermissionButtonLevel",
+        meta: {
+          title: "按钮级",
+          roles: undefined
+        }
+      }
+    ]
+  }
+]
 
 /** 路由实例 */
 export const router = createRouter({
